@@ -8,9 +8,13 @@ TCP_PORT = 8000
 UDP_PORT = 9000
 BUFFER_SIZE = 4096
 
+# Ambil lokasi folder webserver.py
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# HTTP RESPONSE
+
+# BUILD HTTP RESPONSE
 def build_response(status_code, body):
+
     status_text = {
         200: "OK",
         404: "Not Found",
@@ -28,63 +32,109 @@ def build_response(status_code, body):
     return response.encode()
 
 
-# HANDLE TCP CLIENT
+# HANDLE HTTP CLIENT
 def handle_http_client(client_socket, client_address):
+
     try:
+
         request = client_socket.recv(BUFFER_SIZE).decode()
 
         if not request:
             client_socket.close()
             return
 
+        # Ambil request line
         request_line = request.split("\r\n")[0]
+
+        print(f"[REQUEST] {request_line}")
+
         method, path, version = request_line.split()
 
         print(f"[HTTP] {client_address} -> {path}")
 
+        # Hanya support GET
         if method != "GET":
-            response = build_response(500, "<h1>500 Internal Server Error</h1>")
+
+            response = build_response(
+                500,
+                "<h1>500 Internal Server Error</h1>"
+            )
+
             client_socket.sendall(response)
             client_socket.close()
             return
 
+        # Jika akses root
         if path == "/":
             path = "/index.html"
 
-        filepath = "." + path
+        # Gabungkan path dengan folder script
+        filepath = os.path.join(BASE_DIR, path.lstrip("/"))
 
+        print(f"[FILEPATH] {filepath}")
+
+        # Jika file ditemukan
         if os.path.exists(filepath):
+
             with open(filepath, "r", encoding="utf-8") as file:
                 body = file.read()
 
             response = build_response(200, body)
 
+            print(f"[200] File sent -> {filepath}")
+
         else:
-            response = build_response(404, "<h1>404 Not Found</h1>")
+
+            response = build_response(
+                404,
+                "<h1>404 Not Found</h1>"
+            )
+
+            print(f"[404] File not found -> {filepath}")
 
         client_socket.sendall(response)
 
     except Exception as e:
+
         print(f"[ERROR] {e}")
 
-        response = build_response(500, "<h1>500 Internal Server Error</h1>")
+        response = build_response(
+            500,
+            "<h1>500 Internal Server Error</h1>"
+        )
+
         client_socket.sendall(response)
 
     finally:
+
         client_socket.close()
 
 
-# TCP SERVER
+# START TCP SERVER
 def start_tcp_server():
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    server_socket = socket.socket(
+        socket.AF_INET,
+        socket.SOCK_STREAM
+    )
+
+    server_socket.setsockopt(
+        socket.SOL_SOCKET,
+        socket.SO_REUSEADDR,
+        1
+    )
 
     server_socket.bind((HOST, TCP_PORT))
+
     server_socket.listen(5)
 
     print(f"[TCP] Web Server running on port {TCP_PORT}")
 
     while True:
+
         client_socket, client_address = server_socket.accept()
+
+        print(f"[NEW CONNECTION] {client_address}")
 
         thread = threading.Thread(
             target=handle_http_client,
@@ -94,27 +144,38 @@ def start_tcp_server():
         thread.start()
 
 
-# UDP ECHO SERVER
+# START UDP SERVER
 def start_udp_server():
-    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+    udp_socket = socket.socket(
+        socket.AF_INET,
+        socket.SOCK_DGRAM
+    )
 
     udp_socket.bind((HOST, UDP_PORT))
 
     print(f"[UDP] Echo Server running on port {UDP_PORT}")
 
     while True:
+
         data, addr = udp_socket.recvfrom(BUFFER_SIZE)
 
         print(f"[UDP] Packet from {addr}")
 
+        # Echo kembali packet
         udp_socket.sendto(data, addr)
 
 
 # MAIN
 if __name__ == "__main__":
 
-    tcp_thread = threading.Thread(target=start_tcp_server)
-    udp_thread = threading.Thread(target=start_udp_server)
+    tcp_thread = threading.Thread(
+        target=start_tcp_server
+    )
+
+    udp_thread = threading.Thread(
+        target=start_udp_server
+    )
 
     tcp_thread.start()
     udp_thread.start()
