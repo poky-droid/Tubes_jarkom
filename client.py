@@ -3,10 +3,10 @@ import time
 import argparse
 import statistics
 
-PROXY_HOST = "127.0.0.1"
+PROXY_HOST = "192.168.0.102"
 PROXY_PORT = 8080
 
-SERVER_HOST = "127.0.0.1"
+SERVER_HOST = "192.168.0.103"
 UDP_PORT = 9000
 
 BUFFER_SIZE = 4096
