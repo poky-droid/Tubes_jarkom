@@ -1,19 +1,42 @@
 import socket
 import threading
 import os
-from datetime import datetime
 
 HOST = "0.0.0.0"
 TCP_PORT = 8000
 UDP_PORT = 9000
 BUFFER_SIZE = 4096
 
-# Ambil lokasi folder webserver.py
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-# BUILD HTTP RESPONSE
-def build_response(status_code, body):
+# MIME TYPE
+def get_content_type(filepath):
+
+    if filepath.endswith(".html"):
+        return "text/html"
+
+    elif filepath.endswith(".css"):
+        return "text/css"
+
+    elif filepath.endswith(".js"):
+        return "application/javascript"
+
+    elif filepath.endswith(".png"):
+        return "image/png"
+
+    elif filepath.endswith(".jpg") or filepath.endswith(".jpeg"):
+        return "image/jpeg"
+
+    elif filepath.endswith(".ico"):
+        return "image/x-icon"
+
+    else:
+        return "application/octet-stream"
+
+
+# BUILD RESPONSE
+def build_response(status_code, body, content_type):
 
     status_text = {
         200: "OK",
@@ -21,29 +44,28 @@ def build_response(status_code, body):
         500: "Internal Server Error"
     }
 
-    response = (
+    headers = (
         f"HTTP/1.1 {status_code} {status_text[status_code]}\r\n"
-        f"Content-Type: text/html; charset=utf-8\r\n"
-        f"Content-Length: {len(body.encode())}\r\n"
+        f"Content-Type: {content_type}\r\n"
+        f"Content-Length: {len(body)}\r\n"
+        f"Connection: close\r\n"
         f"\r\n"
-        f"{body}"
     )
 
-    return response.encode()
+    return headers.encode() + body
 
 
-# HANDLE HTTP CLIENT
+# HANDLE CLIENT
 def handle_http_client(client_socket, client_address):
 
     try:
 
-        request = client_socket.recv(BUFFER_SIZE).decode()
+        request = client_socket.recv(BUFFER_SIZE).decode(errors="ignore")
 
         if not request:
             client_socket.close()
             return
 
-        # Ambil request line
         request_line = request.split("\r\n")[0]
 
         print(f"[REQUEST] {request_line}")
@@ -55,39 +77,54 @@ def handle_http_client(client_socket, client_address):
         # Hanya support GET
         if method != "GET":
 
+            body = b"<h1>500 Internal Server Error</h1>"
+
             response = build_response(
                 500,
-                "<h1>500 Internal Server Error</h1>"
+                body,
+                "text/html"
             )
 
             client_socket.sendall(response)
             client_socket.close()
             return
 
-        # Jika akses root
+        # Root
         if path == "/":
             path = "/index.html"
 
-        # Gabungkan path dengan folder script
-        filepath = os.path.join(BASE_DIR, path.lstrip("/"))
+        filepath = os.path.join(
+            BASE_DIR,
+            path.lstrip("/")
+        )
 
         print(f"[FILEPATH] {filepath}")
 
-        # Jika file ditemukan
+        # FILE ADA
         if os.path.exists(filepath):
 
-            with open(filepath, "r", encoding="utf-8") as file:
+            with open(filepath, "rb") as file:
                 body = file.read()
 
-            response = build_response(200, body)
+            content_type = get_content_type(filepath)
+
+            response = build_response(
+                200,
+                body,
+                content_type
+            )
 
             print(f"[200] File sent -> {filepath}")
 
+        # FILE TIDAK ADA
         else:
+
+            body = b"<h1>404 Not Found</h1>"
 
             response = build_response(
                 404,
-                "<h1>404 Not Found</h1>"
+                body,
+                "text/html"
             )
 
             print(f"[404] File not found -> {filepath}")
@@ -98,9 +135,12 @@ def handle_http_client(client_socket, client_address):
 
         print(f"[ERROR] {e}")
 
+        body = b"<h1>500 Internal Server Error</h1>"
+
         response = build_response(
             500,
-            "<h1>500 Internal Server Error</h1>"
+            body,
+            "text/html"
         )
 
         client_socket.sendall(response)
@@ -110,7 +150,7 @@ def handle_http_client(client_socket, client_address):
         client_socket.close()
 
 
-# START TCP SERVER
+# TCP SERVER
 def start_tcp_server():
 
     server_socket = socket.socket(
@@ -144,7 +184,7 @@ def start_tcp_server():
         thread.start()
 
 
-# START UDP SERVER
+# UDP SERVER
 def start_udp_server():
 
     udp_socket = socket.socket(
@@ -162,7 +202,6 @@ def start_udp_server():
 
         print(f"[UDP] Packet from {addr}")
 
-        # Echo kembali packet
         udp_socket.sendto(data, addr)
 
 
