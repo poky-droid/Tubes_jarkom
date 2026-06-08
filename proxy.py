@@ -3,6 +3,7 @@ import threading
 import os
 import hashlib
 import time
+import datetime
 
 PROXY_HOST = "0.0.0.0"
 PROXY_PORT = 8080
@@ -49,7 +50,16 @@ def handle_client(client_socket, client_address):
 
         request_line = request_text.split("\r\n")[0]
 
-        method, path, version = request_line.split()
+        try:
+            method, path, version = request_line.split()
+        except ValueError:
+            bad_response = (
+                "HTTP/1.1 400 Bad Request\r\n"
+                "Connection: close\r\n"
+                "Content-Length: 0\r\n\r\n"
+            )
+            client_socket.sendall(bad_response.encode())
+            return
 
         cache_file = get_cache_filename(path)
 
@@ -66,8 +76,8 @@ def handle_client(client_socket, client_address):
             client_socket.sendall(cached_response)
 
             duration = (time.time() - start_time) * 1000
-
-            print(f"[HIT] {path} | {duration:.2f} ms")
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"[HIT] {client_address[0]} | {path} | {timestamp} | {duration:.2f} ms")
 
         # =========================
         # CACHE MISS
@@ -106,18 +116,18 @@ def handle_client(client_socket, client_address):
 
             server_socket.close()
 
-            # Simpan cache
-            with cache_lock:
-
-                with open(cache_file, "wb") as file:
-                    file.write(response)
+            # Simpan cache hanya untuk response 200 OK
+            if response.startswith(b"HTTP/1.1 200") or response.startswith(b"HTTP/1.0 200"):
+                with cache_lock:
+                    with open(cache_file, "wb") as file:
+                        file.write(response)
 
             # Kirim ke client/browser
             client_socket.sendall(response)
 
             duration = (time.time() - start_time) * 1000
-
-            print(f"[MISS] {path} | {duration:.2f} ms")
+            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"[MISS] {client_address[0]} | {path} | {timestamp} | {duration:.2f} ms")
 
     except socket.timeout:
 

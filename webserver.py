@@ -1,6 +1,7 @@
 import socket
 import threading
 import os
+import datetime
 
 HOST = "0.0.0.0"
 TCP_PORT = 8000
@@ -14,7 +15,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 def get_content_type(filepath):
 
     if filepath.endswith(".html"):
-        return "text/html"
+        return "text/html; charset=utf-8"
 
     elif filepath.endswith(".css"):
         return "text/css"
@@ -96,7 +97,8 @@ def handle_http_client(client_socket, client_address):
 
         method, path, version = request_line.split()
 
-        print(f"[HTTP] {client_address} -> {path}")
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print(f"[HTTP] {client_address[0]} | {path} | {timestamp}")
 
         # Hanya support GET
         if method != "GET":
@@ -143,7 +145,7 @@ def handle_http_client(client_socket, client_address):
                 content_type
             )
 
-            print(f"[200] File sent -> {filepath}")
+            print(f"[200] {client_address[0]} | {path} | {timestamp}")
 
         # FILE TIDAK ADA
         else:
@@ -161,7 +163,7 @@ def handle_http_client(client_socket, client_address):
                 content_type
             )
 
-            print(f"[404] File not found -> {filepath}")
+            print(f"[404] {client_address[0]} | {path} | {timestamp}")
 
         client_socket.sendall(response)
 

@@ -153,28 +153,52 @@ function showFlow(el, text) {
     el.classList.add("active-box");
 }
 
-function simulateRequest() {
-    let url = document.getElementById("url").value;
+async function simulateRequest() {
+    let path = document.getElementById("url").value.trim();
     let result = document.getElementById("sim-result");
 
-    const routes = ["/", "/osi", "/tcpip", "/qos", "/implementation"];
-
-    if (!url) {
-        result.innerText = "⚠️ Enter a path";
+    if (!path) {
+        result.innerText = "⚠️ Enter a path (e.g. /index.html)";
+        result.style.color = "white";
         return;
     }
 
-    if (routes.includes(url)) {
-        result.innerText = "✅ 200 OK";
-        result.style.color = "lightgreen";
-    } else if (url === "/timeout") {
-        result.innerText = "⏱ 504 Gateway Timeout";
-        result.style.color = "orange";
-    } else if (url === "/gateway") {
-        result.innerText = "🔌 502 Bad Gateway";
-        result.style.color = "orange";
-    } else {
-        result.innerText = "❌ 404 Not Found";
+    if (!path.startsWith("/")) {
+        path = "/" + path;
+    }
+
+    result.innerText = "⏳ Sending request...";
+    result.style.color = "white";
+
+    const t0 = performance.now();
+
+    try {
+        const response = await fetch(path);
+        const elapsed = (performance.now() - t0).toFixed(1);
+
+        const labels = {
+            200: "✅",
+            404: "❌",
+            500: "💥",
+            502: "🔌",
+            504: "⏱"
+        };
+        const colors = {
+            200: "lightgreen",
+            404: "red",
+            500: "red",
+            502: "orange",
+            504: "orange"
+        };
+
+        const icon = labels[response.status] || "⚠️";
+        const color = colors[response.status] || "white";
+
+        result.innerText = `${icon} ${response.status} ${response.statusText} — ${elapsed} ms`;
+        result.style.color = color;
+
+    } catch (err) {
+        result.innerText = "🔴 Network error – server not reachable";
         result.style.color = "red";
     }
 }

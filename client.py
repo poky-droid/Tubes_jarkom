@@ -52,6 +52,7 @@ def udp_mode():
 
     rtts = []
     success = 0
+    total_bytes = 0
 
     total_packets = 10
 
@@ -79,6 +80,7 @@ def udp_mode():
             rtts.append(rtt)
 
             success += 1
+            total_bytes += len(data)
 
             print(f"Reply from {addr} RTT = {rtt:.2f} ms")
 
@@ -100,7 +102,8 @@ def udp_mode():
         avg_rtt = sum(rtts) / len(rtts)
 
         if len(rtts) > 1:
-            jitter = statistics.stdev(rtts)
+            diffs = [abs(rtts[i] - rtts[i - 1]) for i in range(1, len(rtts))]
+            jitter = statistics.stdev(diffs) if len(diffs) > 1 else 0
         else:
             jitter = 0
 
@@ -110,10 +113,9 @@ def udp_mode():
 
     packet_loss = ((total_packets - success) / total_packets) * 100
 
-    total_data = success * BUFFER_SIZE * 8
     duration = end_test - start_test
 
-    throughput = total_data / duration / 1000
+    throughput = (total_bytes * 8) / duration / 1000
 
     print("\n===== QoS Statistics =====")
     print(f"Min RTT     : {min_rtt:.2f} ms")
