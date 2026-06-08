@@ -153,7 +153,7 @@ function showFlow(el, text) {
     el.classList.add("active-box");
 }
 
-async function simulateRequest() {
+function simulateRequest() {
     let path = document.getElementById("url").value.trim();
     let result = document.getElementById("sim-result");
 
@@ -167,40 +167,28 @@ async function simulateRequest() {
         path = "/" + path;
     }
 
-    result.innerText = "⏳ Sending request...";
-    result.style.color = "white";
+    // Redirect ke status page untuk error code
+    const statusPages = {
+        "/404": "/status/404.html",
+        "/500": "/status/500.html",
+        "/502": "/status/502.html",
+        "/504": "/status/504.html"
+    };
 
-    const t0 = performance.now();
-
-    try {
-        const response = await fetch(path);
-        const elapsed = (performance.now() - t0).toFixed(1);
-
-        const labels = {
-            200: "✅",
-            404: "❌",
-            500: "💥",
-            502: "🔌",
-            504: "⏱"
-        };
-        const colors = {
-            200: "lightgreen",
-            404: "red",
-            500: "red",
-            502: "orange",
-            504: "orange"
-        };
-
-        const icon = labels[response.status] || "⚠️";
-        const color = colors[response.status] || "white";
-
-        result.innerText = `${icon} ${response.status} ${response.statusText} — ${elapsed} ms`;
-        result.style.color = color;
-
-    } catch (err) {
-        result.innerText = "🔴 Network error – server not reachable";
-        result.style.color = "red";
+    if (statusPages[path]) {
+        window.location.href = statusPages[path];
+        return;
     }
+
+    // Auto-append .html jika path tidak punya ekstensi
+    const lastSegment = path.split("/").pop();
+    if (lastSegment && !lastSegment.includes(".")) {
+        path = path === "/" ? "/index.html" : path + ".html";
+    } else if (path === "/") {
+        path = "/index.html";
+    }
+
+    window.location.href = path;
 }
 
 function toggleDark() {
