@@ -35,13 +35,37 @@ def get_content_type(filepath):
         return "application/octet-stream"
 
 
+# LOAD STATUS PAGE
+def load_status_page(status_code):
+    """
+    Load custom status page dari folder status jika ada.
+    Returns: (body, content_type) atau (None, None) jika tidak ada
+    """
+    status_filename = f"{status_code}.html"
+    status_path = os.path.join(BASE_DIR, "status", status_filename)
+
+    if os.path.exists(status_path):
+        try:
+            with open(status_path, "rb") as f:
+                body = f.read()
+            content_type = get_content_type(status_path)
+            return body, content_type
+        except Exception as e:
+            print(f"[WARNING] Failed to load status page {status_code}: {e}")
+            return None, None
+
+    return None, None
+
+
 # BUILD RESPONSE
 def build_response(status_code, body, content_type):
 
     status_text = {
         200: "OK",
         404: "Not Found",
-        500: "Internal Server Error"
+        500: "Internal Server Error",
+        502: "Bad Gateway",
+        504: "Gateway Timeout"
     }
 
     headers = (
@@ -77,12 +101,17 @@ def handle_http_client(client_socket, client_address):
         # Hanya support GET
         if method != "GET":
 
-            body = b"<h1>500 Internal Server Error</h1>"
+            # Gunakan custom 500 page jika ada
+            body, content_type = load_status_page(500)
+
+            if body is None:
+                body = b"<h1>500 Internal Server Error</h1>"
+                content_type = "text/html"
 
             response = build_response(
                 500,
                 body,
-                "text/html"
+                content_type
             )
 
             client_socket.sendall(response)
@@ -119,12 +148,17 @@ def handle_http_client(client_socket, client_address):
         # FILE TIDAK ADA
         else:
 
-            body = b"<h1>404 Not Found</h1>"
+            # Gunakan custom 404 page jika ada
+            body, content_type = load_status_page(404)
+
+            if body is None:
+                body = b"<h1>404 Not Found</h1>"
+                content_type = "text/html"
 
             response = build_response(
                 404,
                 body,
-                "text/html"
+                content_type
             )
 
             print(f"[404] File not found -> {filepath}")
@@ -135,12 +169,17 @@ def handle_http_client(client_socket, client_address):
 
         print(f"[ERROR] {e}")
 
-        body = b"<h1>500 Internal Server Error</h1>"
+        # Gunakan custom 500 page jika ada
+        body, content_type = load_status_page(500)
+
+        if body is None:
+            body = b"<h1>500 Internal Server Error</h1>"
+            content_type = "text/html"
 
         response = build_response(
             500,
             body,
-            "text/html"
+            content_type
         )
 
         client_socket.sendall(response)
