@@ -124,10 +124,19 @@ def handle_http_client(client_socket, client_address):
         if path == "/":
             path = "/index.html"
 
-        filepath = os.path.join(
+        filepath = os.path.realpath(os.path.join(
             BASE_DIR,
             path.lstrip("/")
-        )
+        ))
+
+        # Blokir path traversal (../../ dll)
+        if not filepath.startswith(os.path.realpath(BASE_DIR)):
+            body, content_type = load_status_page(404)
+            if body is None:
+                body = b"<h1>404 Not Found</h1>"
+                content_type = "text/html; charset=utf-8"
+            client_socket.sendall(build_response(404, body, content_type))
+            return
 
         print(f"[FILEPATH] {filepath}")
 
