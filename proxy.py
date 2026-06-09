@@ -51,7 +51,7 @@ def handle_client(client_socket, client_address):
         request_line = request_text.split("\r\n")[0]
 
         try:
-            method, path, version = request_line.split()
+            _, path, _ = request_line.split()
         except ValueError:
             bad_response = (
                 "HTTP/1.1 400 Bad Request\r\n"
@@ -91,30 +91,34 @@ def handle_client(client_socket, client_address):
 
             server_socket.settimeout(2)
 
-            server_socket.connect(
-                (SERVER_HOST, SERVER_PORT)
-            )
-
-            # Forward request ke webserver
-            server_socket.sendall(request)
-
-            response = b""
-
             try:
 
-                while True:
+                server_socket.connect(
+                    (SERVER_HOST, SERVER_PORT)
+                )
 
-                    data = server_socket.recv(BUFFER_SIZE)
+                # Forward request ke webserver
+                server_socket.sendall(request)
 
-                    if not data:
-                        break
+                response = b""
 
-                    response += data
+                try:
 
-            except socket.timeout:
-                pass
+                    while True:
 
-            server_socket.close()
+                        data = server_socket.recv(BUFFER_SIZE)
+
+                        if not data:
+                            break
+
+                        response += data
+
+                except socket.timeout:
+                    pass
+
+            finally:
+
+                server_socket.close()
 
             # Simpan cache hanya untuk response 200 OK
             if response.startswith(b"HTTP/1.1 200") or response.startswith(b"HTTP/1.0 200"):
@@ -176,9 +180,9 @@ def start_proxy():
         (PROXY_HOST, PROXY_PORT)
     )
 
-    proxy_socket.listen(5)
+    proxy_socket.listen(10)
 
-    print(f"[PROXY] Running on port {PROXY_PORT}")
+    print(f"[PROXY] Proxy listening on port {PROXY_PORT}, multithreading aktif")
 
     while True:
 

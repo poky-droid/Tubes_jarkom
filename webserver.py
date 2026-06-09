@@ -216,9 +216,9 @@ def start_tcp_server():
 
     server_socket.bind((HOST, TCP_PORT))
 
-    server_socket.listen(5)
+    server_socket.listen(10)
 
-    print(f"[TCP] Web Server running on port {TCP_PORT}")
+    print(f"[TCP] Listening on port {TCP_PORT}")
 
     while True:
 
@@ -258,13 +258,16 @@ def start_udp_server():
 # MAIN
 if __name__ == "__main__":
 
-    tcp_thread = threading.Thread(
-        target=start_tcp_server
-    )
+    print(f"[SERVER] Server running on port {TCP_PORT}/{UDP_PORT}")
 
-    udp_thread = threading.Thread(
-        target=start_udp_server
-    )
+    tcp_thread = threading.Thread(target=start_tcp_server, daemon=True)
+    udp_thread = threading.Thread(target=start_udp_server, daemon=True)
 
     tcp_thread.start()
     udp_thread.start()
+
+    try:
+        tcp_thread.join()
+        udp_thread.join()
+    except KeyboardInterrupt:
+        print("[SERVER] Shutting down.")
