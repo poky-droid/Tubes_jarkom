@@ -154,29 +154,41 @@ function showFlow(el, text) {
 }
 
 function simulateRequest() {
-    let url = document.getElementById("url").value;
+    let path = document.getElementById("url").value.trim();
     let result = document.getElementById("sim-result");
 
-    const routes = ["/", "/osi", "/tcpip", "/qos", "/implementation"];
-
-    if (!url) {
-        result.innerText = "⚠️ Enter a path";
+    if (!path) {
+        result.innerText = "⚠️ Enter a path (e.g. /index.html)";
+        result.style.color = "white";
         return;
     }
 
-    if (routes.includes(url)) {
-        result.innerText = "✅ 200 OK";
-        result.style.color = "lightgreen";
-    } else if (url === "/timeout") {
-        result.innerText = "⏱ 504 Gateway Timeout";
-        result.style.color = "orange";
-    } else if (url === "/gateway") {
-        result.innerText = "🔌 502 Bad Gateway";
-        result.style.color = "orange";
-    } else {
-        result.innerText = "❌ 404 Not Found";
-        result.style.color = "red";
+    if (!path.startsWith("/")) {
+        path = "/" + path;
     }
+
+    // Redirect ke status page untuk error code
+    const statusPages = {
+        "/404": "/status/404.html",
+        "/500": "/status/500.html",
+        "/502": "/status/502.html",
+        "/504": "/status/504.html"
+    };
+
+    if (statusPages[path]) {
+        window.location.href = statusPages[path];
+        return;
+    }
+
+    // Auto-append .html jika path tidak punya ekstensi
+    const lastSegment = path.split("/").pop();
+    if (lastSegment && !lastSegment.includes(".")) {
+        path = path === "/" ? "/index.html" : path + ".html";
+    } else if (path === "/") {
+        path = "/index.html";
+    }
+
+    window.location.href = path;
 }
 
 function toggleDark() {
