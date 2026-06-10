@@ -2,6 +2,7 @@ import socket
 import threading
 import os
 import datetime
+import time
 
 HOST = "0.0.0.0"
 TCP_PORT = 8000
@@ -84,7 +85,7 @@ def build_response(status_code, body, content_type):
 def handle_http_client(client_socket, client_address):
 
     try:
-
+        time.sleep(5)
         request = client_socket.recv(BUFFER_SIZE).decode(errors="ignore")
 
         if not request:
