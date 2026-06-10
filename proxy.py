@@ -15,6 +15,7 @@ SERVER_PORT = 8000
 BUFFER_SIZE = 4096
 
 CACHE_DIR = "cache"
+STATUS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "status")
 
 if not os.path.exists(CACHE_DIR):
     os.makedirs(CACHE_DIR)
@@ -28,6 +29,33 @@ def get_cache_filename(path):
     filename = hashlib.md5(path.encode()).hexdigest()
 
     return os.path.join(CACHE_DIR, filename)
+
+
+# LOAD STATUS PAGE
+def load_status_page(status_code):
+
+    status_path = os.path.join(STATUS_DIR, f"{status_code}.html")
+
+    if os.path.exists(status_path):
+        with open(status_path, "rb") as f:
+            return f.read()
+
+    return None
+
+
+# BUILD ERROR RESPONSE
+def build_error_response(status_code, status_text, fallback_body):
+
+    body = load_status_page(status_code) or fallback_body
+
+    headers = (
+        f"HTTP/1.1 {status_code} {status_text}\r\n"
+        f"Content-Type: text/html\r\n"
+        f"Content-Length: {len(body)}\r\n"
+        f"Connection: close\r\n\r\n"
+    )
+
+    return headers.encode() + body
 
 
 # HANDLE CLIENT
@@ -53,12 +81,9 @@ def handle_client(client_socket, client_address):
         try:
             _, path, _ = request_line.split()
         except ValueError:
-            bad_response = (
-                "HTTP/1.1 400 Bad Request\r\n"
-                "Connection: close\r\n"
-                "Content-Length: 0\r\n\r\n"
-            )
-            client_socket.sendall(bad_response.encode())
+            client_socket.sendall(build_error_response(
+                400, "Bad Request", b"<h1>400 Bad Request</h1>"
+            ))
             return
 
         cache_file = get_cache_filename(path)
@@ -137,25 +162,17 @@ def handle_client(client_socket, client_address):
 
         print("[TIMEOUT]")
 
-        response = (
-            "HTTP/1.1 504 Gateway Timeout\r\n"
-            "Connection: close\r\n"
-            "Content-Length: 0\r\n\r\n"
-        )
-
-        client_socket.sendall(response.encode())
+        client_socket.sendall(build_error_response(
+            504, "Gateway Timeout", b"<h1>504 Gateway Timeout</h1>"
+        ))
 
     except Exception as e:
 
         print(f"[ERROR] {e}")
 
-        response = (
-            "HTTP/1.1 502 Bad Gateway\r\n"
-            "Connection: close\r\n"
-            "Content-Length: 0\r\n\r\n"
-        )
-
-        client_socket.sendall(response.encode())
+        client_socket.sendall(build_error_response(
+            502, "Bad Gateway", b"<h1>502 Bad Gateway</h1>"
+        ))
 
     finally:
 
