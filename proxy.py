@@ -86,6 +86,14 @@ def handle_client(client_socket, client_address):
             ))
             return
 
+        # Test route untuk demonstrasi 502 (uncomment jika butuh)
+        if path == "/force502":
+            client_socket.sendall(build_error_response(
+                502, "Bad Gateway", b"<h1>502 Bad Gateway</h1>"
+            ))
+            print(f"[502] {client_address[0]} | {path} | forced")
+            return
+
         cache_file = get_cache_filename(path)
 
         # =========================
@@ -116,13 +124,22 @@ def handle_client(client_socket, client_address):
 
             server_socket.settimeout(2)
 
+            # Connect ke webserver — gagal = 502
+            try:
+                server_socket.connect((SERVER_HOST, SERVER_PORT))
+            except Exception:
+                server_socket.close()
+                duration = (time.time() - start_time) * 1000
+                timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                print(f"[502] {client_address[0]} | {path} | {timestamp} | {duration:.2f} ms")
+                client_socket.sendall(build_error_response(
+                    502, "Bad Gateway", b"<h1>502 Bad Gateway</h1>"
+                ))
+                return
+
+            # Connect berhasil — kirim request, baca response
             try:
 
-                server_socket.connect(
-                    (SERVER_HOST, SERVER_PORT)
-                )
-
-                # Forward request ke webserver
                 server_socket.sendall(request)
 
                 response = b""
@@ -139,7 +156,15 @@ def handle_client(client_socket, client_address):
                         response += data
 
                 except socket.timeout:
-                    pass
+
+                    if not response:
+                        duration = (time.time() - start_time) * 1000
+                        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        print(f"[504] {client_address[0]} | {path} | {timestamp} | {duration:.2f} ms")
+                        client_socket.sendall(build_error_response(
+                            504, "Gateway Timeout", b"<h1>504 Gateway Timeout</h1>"
+                        ))
+                        return
 
             finally:
 
@@ -157,14 +182,6 @@ def handle_client(client_socket, client_address):
             duration = (time.time() - start_time) * 1000
             timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             print(f"[MISS] {client_address[0]} | {path} | {timestamp} | {duration:.2f} ms")
-
-    except socket.timeout:
-
-        print("[TIMEOUT]")
-
-        client_socket.sendall(build_error_response(
-            504, "Gateway Timeout", b"<h1>504 Gateway Timeout</h1>"
-        ))
 
     except Exception as e:
 

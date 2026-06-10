@@ -85,11 +85,9 @@ def build_response(status_code, body, content_type):
 def handle_http_client(client_socket, client_address):
 
     try:
-        time.sleep(5)
         request = client_socket.recv(BUFFER_SIZE).decode(errors="ignore")
 
         if not request:
-            client_socket.close()
             return
 
         request_line = request.split("\r\n")[0]
@@ -118,12 +116,28 @@ def handle_http_client(client_socket, client_address):
             )
 
             client_socket.sendall(response)
-            client_socket.close()
             return
 
         # Root
         if path == "/":
             path = "/index.html"
+
+        # Test route: trigger 500
+        if path == "/500":
+            body, content_type = load_status_page(500)
+            if body is None:
+                body = b"<h1>500 Internal Server Error</h1>"
+                content_type = "text/html"
+            client_socket.sendall(build_response(500, body, content_type))
+            print(f"[500] {client_address[0]} | {path} | {timestamp}")
+            return
+
+        # Test route: trigger 504 (proxy timeout)
+        if path == "/slow":
+            time.sleep(5)
+            body = b"<h1>OK (slow response)</h1>"
+            client_socket.sendall(build_response(200, body, "text/html"))
+            return
 
         filepath = os.path.realpath(os.path.join(
             BASE_DIR,
